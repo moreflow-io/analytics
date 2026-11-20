@@ -1,0 +1,103 @@
+{
+  "name": "@moreflow/analytics",
+  "version": "0.1.0",
+  "description": "Thin browser SDK for moreflow website analytics and A/B testing: loads the moreflow tracker, queues events and reads experiment variants, with optional React bindings.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/moreflow-io/analytics.git"
+  },
+  "homepage": "https://github.com/moreflow-io/analytics#readme",
+  "bugs": {
+    "url": "https://github.com/moreflow-io/analytics/issues"
+  },
+  "keywords": [
+    "moreflow",
+    "analytics",
+    "ab-testing",
+    "experiments",
+    "browser",
+    "react"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "typesVersions": {
+    "*": {
+      "react": [
+        "./dist/react.d.ts"
+      ],
+      "tanstack-start": [
+        "./dist/tanstack-start.d.ts"
+      ],
+      "tanstack-start/server": [
+        "./dist/tanstack-start-server.d.ts"
+      ]
+    }
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./react": {
+      "types": "./dist/react.d.ts",
+      "import": "./dist/react.js"
+    },
+    "./tanstack-start": {
+      "types": "./dist/tanstack-start.d.ts",
+      "import": "./dist/tanstack-start.js"
+    },
+    "./package.json": "./package.json",
+    "./tanstack-start/server": {
+      "types": "./dist/tanstack-start-server.d.ts",
+      "import": "./dist/tanstack-start-server.js"
+    }
+  },
+  "scripts": {
+    "build": "rm -rf dist && esbuild src/index.ts src/react.ts src/tanstack-start.ts src/tanstack-start-server.ts --bundle --splitting --external:react --external:@tanstack/react-start --external:@tanstack/react-router --format=esm --minify --outdir=dist --chunk-names=chunks/[name]-[hash] && node ../../scripts/tsc-toolchain.mjs --singleThreaded -p tsconfig.build.json",
+    "typecheck": "node ../../scripts/tsc-toolchain.mjs --singleThreaded --noEmit",
+    "test": "vitest run",
+    "prepublishOnly": "bun run build && bun run test"
+  },
+  "peerDependencies": {
+    "@tanstack/react-router": ">=1.160.0",
+    "@tanstack/react-start": ">=1.160.0",
+    "react": ">=18"
+  },
+  "peerDependenciesMeta": {
+    "@tanstack/react-router": {
+      "optional": true
+    },
+    "@tanstack/react-start": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@testing-library/react": "16.3.3",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "esbuild": "0.28.2",
+    "jsdom": "31.0.1",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "typescript": "7.0.2",
+    "vitest": "5.1.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

@@ -1,0 +1,1 @@
+import{b as e,d as n,g as r,n as s}from"./chunks/chunk-UJZ4HEKL.js";import{getRequestHeader as a}from"@tanstack/react-start/server";function u(){let t=a(e);return t==null?null:n(t)}function p(){return s(a(r))}export{p as requestContent,u as requestVariants};

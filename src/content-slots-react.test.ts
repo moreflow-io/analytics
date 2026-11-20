@@ -1,0 +1,73 @@
+// @vitest-environment jsdom
+import { cleanup, render } from '@testing-library/react';
+import { createElement } from 'react';
+import { renderToString } from 'react-dom/server';
+import { afterEach, describe, expect, it } from 'vitest';
+import { type ContentAssignments, parseContent, serializeContent } from './content';
+import { AnalyticsProvider, ContentImage, ContentLink, ContentSlot } from './react';
+
+afterEach(cleanup);
+
+function featured(content: ContentAssignments | undefined) {
+  return createElement(
+    AnalyticsProvider,
+    { src: '/_mf/a.js', content },
+    createElement(
+      'section',
+      null,
+      createElement('h2', null, createElement(ContentSlot, { id: 'featured.title', children: 'Unsere Leistungen' })),
+      createElement(ContentImage, { id: 'featured.image', altId: 'featured.image_alt', src: '/default.jpg', alt: 'Studio', loading: 'lazy' }),
+      createElement(ContentLink, { id: 'featured.cta_url', href: '/kontakt', className: 'cta' }, createElement(ContentSlot, { id: 'featured.cta_label', children: 'Kontakt' }))
+    )
+  );
+}
+
+describe('ContentLink and ContentImage', () => {
+  it('render the assigned link and image of a featured section', () => {
+    const content = parseContent(
+      serializeContent({
+        'featured.title': 'Laser <b>sanft</b>',
+        'featured.cta_label': 'Termin buchen',
+        'featured.cta_url': 'https://app.moreflow.de/studio/m/erstgespraech',
+        'featured.image': 'https://api.moreflow.de/v1/public/site-media/a/s/i',
+        'featured.image_alt': 'Laser "Raum"'
+      })
+    );
+    const { container } = render(featured(content));
+    const link = container.querySelector('a');
+    expect(link?.getAttribute('href')).toBe('https://app.moreflow.de/studio/m/erstgespraech');
+    expect(link?.getAttribute('rel')).toBe('noopener');
+    expect(link?.className).toBe('cta');
+    expect(link?.textContent).toBe('Termin buchen');
+    const image = container.querySelector('img');
+    expect(image?.getAttribute('src')).toBe('https://api.moreflow.de/v1/public/site-media/a/s/i');
+    expect(image?.getAttribute('alt')).toBe('Laser "Raum"');
+    expect(image?.getAttribute('loading')).toBe('lazy');
+    // Text slots stay text: markup in copy is escaped, never parsed.
+    expect(container.querySelector('b')).toBeNull();
+    expect(container.querySelector('h2')?.textContent).toBe('Laser <b>sanft</b>');
+  });
+
+  it('keep a relative assigned link without rel, and the site’s own values without an assignment', () => {
+    const { container, rerender } = render(featured({ 'featured.cta_url': '/laser' }));
+    expect(container.querySelector('a')?.getAttribute('href')).toBe('/laser');
+    expect(container.querySelector('a')?.hasAttribute('rel')).toBe(false);
+    rerender(featured(undefined));
+    expect(container.querySelector('a')?.getAttribute('href')).toBe('/kontakt');
+    expect(container.querySelector('img')?.getAttribute('src')).toBe('/default.jpg');
+    expect(container.querySelector('img')?.getAttribute('alt')).toBe('Studio');
+  });
+
+  it('never render script or data URLs, even when the content is handed in directly', () => {
+    const html = renderToString(
+      featured({
+        'featured.cta_url': 'javascript:alert(1)',
+        'featured.image': 'data:image/svg+xml,<svg onload=alert(1)>'
+      })
+    );
+    expect(html).not.toContain('javascript:');
+    expect(html).not.toContain('data:');
+    expect(html).toContain('href="/kontakt"');
+    expect(html).toContain('src="/default.jpg"');
+  });
+});
