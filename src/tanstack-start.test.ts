@@ -6,7 +6,7 @@ import { createMemoryHistory, createRootRoute, createRoute, createRouter, Outlet
 import { cleanup, render } from '@testing-library/react';
 import { createElement } from 'react';
 import { renderToString } from 'react-dom/server';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { serializeContent } from './content';
 import { routeMetaName } from './index';
 import { AnalyticsProvider, ContentSlot, useVariant } from './react';
@@ -136,15 +136,28 @@ describe('useAnalyticsRoute (the matched route template on load and navigation)'
   const post = createRoute({ getParentRoute: () => siteLayout, path: '/blog/$slug', component: Outlet });
   const docs = createRoute({ getParentRoute: () => rootRoute, path: '/docs/{-$lang}/intro', component: Outlet });
   const files = createRoute({ getParentRoute: () => rootRoute, path: '/files/$', component: Outlet });
-  const routeTree = rootRoute.addChildren([siteLayout.addChildren([home, post]), docs, files]);
+  // A route whose loader resolves only when the test says so (an async data load).
+  let releaseLoader: (() => void) | undefined;
+  const slow = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/kurse/$id',
+    component: Outlet,
+    loader: () => new Promise<void>((resolve) => void (releaseLoader = resolve))
+  });
+  const routeTree = rootRoute.addChildren([siteLayout.addChildren([home, post]), docs, files, slow]);
 
   let sent: string[];
+  let paths: Array<string | undefined>;
   let order: string[];
 
   beforeEach(() => {
     sent = [];
+    paths = [];
     order = [];
-    window.moreflowAnalytics = { q: [], setRoute: (route: string) => void (sent.push(route), order.push(`route:${route}`)) };
+    window.moreflowAnalytics = {
+      q: [],
+      setRoute: (route: string, path?: string) => void (sent.push(route), paths.push(path), order.push(`route:${route}`))
+    };
   });
 
   afterEach(() => {
@@ -188,6 +201,22 @@ describe('useAnalyticsRoute (the matched route template on load and navigation)'
     const pushedAt = order.indexOf('pushed');
     expect(pushedAt).toBeGreaterThan(0);
     expect(order[pushedAt - 1]).toBe('route:/blog/[slug]');
+  });
+
+  it('binds every report to the navigation target path, also while an async loader is still pending', async () => {
+    const router = mount('/');
+    await router.load();
+    const navigation = router.navigate({ to: '/kurse/$id', params: { id: '42' } });
+    // Reported before the push and the loader: the location is still `/`, the route is bound to the target.
+    await vi.waitFor(() => expect(sent.at(-1)).toBe('/kurse/[id]'));
+    expect(paths.at(-1)).toBe('/kurse/42');
+    await vi.waitFor(() => expect(releaseLoader).toBeDefined());
+    releaseLoader?.();
+    await navigation;
+    expect(sent.at(-1)).toBe('/kurse/[id]');
+    expect(paths.at(-1)).toBe('/kurse/42');
+    expect(paths.every((path) => typeof path === 'string')).toBe(true);
+    expect(paths[0]).toBe('/');
   });
 
   it('reports no template for a page no route matched', async () => {

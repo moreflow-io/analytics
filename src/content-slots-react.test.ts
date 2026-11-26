@@ -29,7 +29,7 @@ describe('ContentLink and ContentImage', () => {
         'featured.title': 'Laser <b>sanft</b>',
         'featured.cta_label': 'Termin buchen',
         'featured.cta_url': 'https://app.moreflow.de/studio/m/erstgespraech',
-        'featured.image': 'https://api.moreflow.de/v1/public/site-media/a/s/i',
+        'featured.image': 'https://api.moreflow.de/public/site-media/a/s/i',
         'featured.image_alt': 'Laser "Raum"'
       })
     );
@@ -40,7 +40,7 @@ describe('ContentLink and ContentImage', () => {
     expect(link?.className).toBe('cta');
     expect(link?.textContent).toBe('Termin buchen');
     const image = container.querySelector('img');
-    expect(image?.getAttribute('src')).toBe('https://api.moreflow.de/v1/public/site-media/a/s/i');
+    expect(image?.getAttribute('src')).toBe('https://api.moreflow.de/public/site-media/a/s/i');
     expect(image?.getAttribute('alt')).toBe('Laser "Raum"');
     expect(image?.getAttribute('loading')).toBe('lazy');
     // Text slots stay text: markup in copy is escaped, never parsed.

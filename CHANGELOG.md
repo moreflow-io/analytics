@@ -4,6 +4,11 @@ All notable changes to `@moreflow/analytics` are documented in this file.
 
 ## Unreleased
 
+## 0.1.1
+
+- `setRoute(route, path?)`: the optional `path` binds the template to a navigation's target path, for a route reported before the URL changes. `useAnalyticsRoute()` now passes the target path from `onBeforeNavigate`, so a navigation's pageview carries the matched template even while route loaders still run (before, the template was bound to the old path and cleared by the push).
+- `requestFlags()` in `@moreflow/analytics/tanstack-start/server` reads the platform's `x-mf-flags` header of the current request (null off the platform); pass it to `AnalyticsProvider` as `flags`.
+
 ## 0.1.0
 
 - Link and image content slots: slot values stay strings; the site's `moreflow.slots.json` declares a slot as `text`, `link` or `image`, so a section such as `featured.title`, `featured.cta_url` and `featured.image` (plus `featured.image_alt` for its alt text) can be varied as a whole. `<ContentLink id href>` and `useContentLink(id, fallback)` render an assigned target only when it is a `/path` or an https URL (never `javascript:`, `data:` or `//host`) and add `rel="noopener"` to absolute ones; `<ContentImage id altId src alt>` and `useContentImage(id, fallback)` render https images only (moreflow publishes the media asset's served URL). `getContentLink`, `getContentImage`, `isSafeContentHref` and `isSafeContentImageSrc` are the framework-free helpers; `getContent` and `useContentSlot` are unchanged.

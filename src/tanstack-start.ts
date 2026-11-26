@@ -109,25 +109,27 @@ export function routeMeta(matches: ReadonlyArray<{ routeId: string; fullPath: st
  *
  * `useAnalyticsRoute();`
  *
- * It reports on `onBeforeNavigate`, which TanStack emits synchronously inside `history.push`: the template is set
- * before the tracker's history hook queues the navigation's pageview, so that pageview carries it too. The leaf
- * match's `fullPath` is used, so pathless layouts and route groups do not appear in the template.
+ * It reports on `onBeforeNavigate`, which TanStack emits synchronously inside `history.push` before the URL changes, and
+ * binds the template to the navigation's target path (`setRoute(route, toLocation.pathname)`): the template survives the
+ * push, so the tracker's pageview of the navigation carries it whether or not the route loaders are still running. It
+ * reports again on `onResolved` for the same target path. The leaf match's `fullPath` is used, so pathless layouts and
+ * route groups do not appear in the template.
  */
 export function useAnalyticsRoute(): void {
   const router = useRouter();
   useEffect(() => {
-    const report = (matches: ReadonlyArray<{ routeId: string; fullPath: string }>) => {
+    const report = (matches: ReadonlyArray<{ routeId: string; fullPath: string }>, pathname: string) => {
       const route = routeTemplateOfMatches(matches);
-      if (route !== null) setRoute(route);
+      if (route !== null) setRoute(route, pathname);
     };
     const unsubscribeBeforeNavigate = router.subscribe('onBeforeNavigate', ({ toLocation }) => {
-      report(router.matchRoutes(toLocation.pathname, toLocation.search));
+      report(router.matchRoutes(toLocation.pathname, toLocation.search), toLocation.pathname);
     });
     // Resolved navigations, including the first load (which may finish after this effect runs).
     const unsubscribeResolved = router.subscribe('onResolved', ({ toLocation }) => {
-      report(router.matchRoutes(toLocation.pathname, toLocation.search));
+      report(router.matchRoutes(toLocation.pathname, toLocation.search), toLocation.pathname);
     });
-    report(router.state.matches);
+    report(router.state.matches, router.state.location.pathname);
     return () => {
       unsubscribeBeforeNavigate();
       unsubscribeResolved();

@@ -46,7 +46,7 @@ describe('getContent', () => {
 
 describe('link and image slots', () => {
   const href = 'https://app.moreflow.de/studio/m/erstgespraech';
-  const src = 'https://api.moreflow.de/v1/public/site-media/a/s/i';
+  const src = 'https://api.moreflow.de/public/site-media/a/s/i';
 
   it('reads link and image strings with their own getters; every value stays a string', () => {
     const content = parseContent(serializeContent({ 'featured.title': 'Laser', 'featured.cta_url': href, 'featured.image': src }));

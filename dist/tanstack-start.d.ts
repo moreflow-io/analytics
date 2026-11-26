@@ -61,8 +61,10 @@ export declare function routeMeta(matches: ReadonlyArray<{
  *
  * `useAnalyticsRoute();`
  *
- * It reports on `onBeforeNavigate`, which TanStack emits synchronously inside `history.push`: the template is set
- * before the tracker's history hook queues the navigation's pageview, so that pageview carries it too. The leaf
- * match's `fullPath` is used, so pathless layouts and route groups do not appear in the template.
+ * It reports on `onBeforeNavigate`, which TanStack emits synchronously inside `history.push` before the URL changes, and
+ * binds the template to the navigation's target path (`setRoute(route, toLocation.pathname)`): the template survives the
+ * push, so the tracker's pageview of the navigation carries it whether or not the route loaders are still running. It
+ * reports again on `onResolved` for the same target path. The leaf match's `fullPath` is used, so pathless layouts and
+ * route groups do not appear in the template.
  */
 export declare function useAnalyticsRoute(): void;

@@ -7,6 +7,7 @@
  */
 import { getRequestHeader } from '@tanstack/react-start/server';
 import { type ContentAssignments, contentHeaderName, parseContent } from './content';
+import { type FeatureFlagAssignments, flagsHeaderName, parseFlags } from './flags';
 import { parseVariants, type VariantAssignments, variantsHeaderName } from './variants';
 
 /** The current request's platform variant assignments, or null off the platform. */
@@ -18,4 +19,13 @@ export function requestVariants(): VariantAssignments | null {
 /** The current request's content for the assigned variants (`x-mf-content`); `{}` without it. */
 export function requestContent(): ContentAssignments {
   return parseContent(getRequestHeader(contentHeaderName));
+}
+
+/**
+ * The current request's platform feature flag decisions (`x-mf-flags`), or null off the platform (no header): the
+ * provider then keeps the tracker's own flag evaluation. Pass it to `AnalyticsProvider` as `flags`.
+ */
+export function requestFlags(): FeatureFlagAssignments | null {
+  const value = getRequestHeader(flagsHeaderName);
+  return value == null ? null : parseFlags(value);
 }

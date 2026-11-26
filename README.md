@@ -319,8 +319,9 @@ without `setRoute`. Put it in the root route's `head()`, which TanStack calls wi
 the matches of the whole page.
 
 `@moreflow/analytics/tanstack-start/server` holds the server-only readers.
-`requestVariants()` and `requestContent()` read the platform's `x-mf-variants`
-and `x-mf-content` headers of the current request. Call them only inside a
+`requestVariants()`, `requestContent()` and `requestFlags()` read the platform's
+`x-mf-variants`, `x-mf-content` and `x-mf-flags` headers of the current request
+(`requestVariants()` and `requestFlags()` return null off the platform). Call them only inside a
 server function or server route. They import `@tanstack/react-start/server`, an
 optional peer dependency that only this subpath needs; a client bundle must
 never import it.
@@ -334,18 +335,18 @@ import { routeMeta, useAnalyticsRoute, variantsMeta } from '@moreflow/analytics/
 
 const getExperiments = createServerFn().handler(async () => {
   // Dynamic import keeps the request APIs out of the browser bundle.
-  const { requestContent, requestVariants } = await import('@moreflow/analytics/tanstack-start/server');
-  return { variants: requestVariants(), content: requestContent() };
+  const { requestContent, requestFlags, requestVariants } = await import('@moreflow/analytics/tanstack-start/server');
+  return { variants: requestVariants(), content: requestContent(), flags: requestFlags() };
 });
 
 export const Route = createRootRoute({
   loader: () => getExperiments(),
   head: ({ loaderData, matches }) => ({ meta: [...variantsMeta(loaderData?.variants), ...routeMeta(matches)] }),
   component: () => {
-    const { variants, content } = Route.useLoaderData();
+    const { variants, content, flags } = Route.useLoaderData();
     useAnalyticsRoute();
     return (
-      <AnalyticsProvider src="/_mf/a.js" variants={variants ?? undefined} content={content}>
+      <AnalyticsProvider src="/_mf/a.js" variants={variants ?? undefined} content={content} flags={flags ?? undefined}>
         <Outlet />
       </AnalyticsProvider>
     );
@@ -354,7 +355,7 @@ export const Route = createRootRoute({
 ```
 
 The loader data is serialized into the page, so the server and the browser
-render the same variants and content.
+render the same variants, content and flags.
 
 <!-- Every example in the Export reference is compiled and run by src/readme-examples.test.tsx; keep them in sync. -->
 
@@ -656,6 +657,8 @@ const assigned = getAssignments(); // e.g. [{ experiment: 'hero-offer', variant:
 #### `setRoute(route)`
 
 Reports the route template of the current page, such as `/blog/[slug]` for `/blog/my-post`, so the events of the page carry the template and reports group one page instead of every slug. The template applies while the path stays the same: a navigation to another path clears it until `setRoute` is called again. A value that is not a string starting with `/`, or is longer than 512 characters, is dropped. Call it on every client navigation, or use `useAnalyticsRoute()` from `@moreflow/analytics/tanstack-start`, which does that for TanStack Start.
+
+Pass the navigation's target path as a second argument, `setRoute(route, path)`, when you report the route before the URL changes (in a router's before-navigate hook): the template is then bound to that path, so the navigation's pageview carries it. `useAnalyticsRoute()` does this.
 
 ```ts
 import { setRoute } from '@moreflow/analytics';

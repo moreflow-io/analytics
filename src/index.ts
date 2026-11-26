@@ -53,7 +53,7 @@ export interface MoreflowAnalyticsGlobal {
   consentStatus?: () => ConsentStatus;
   getVariant?: (key: string) => string | null;
   getAssignments?: () => AnalyticsAssignment[];
-  setRoute?: (route: string) => void;
+  setRoute?: (route: string, path?: string) => void;
   isFeatureEnabled?: (key: string) => boolean;
   getFeatureFlagPayload?: (key: string) => Record<string, unknown> | null;
 }
@@ -180,9 +180,12 @@ export function identify(contactId: string): void {
  * Reports the route template of the current page, such as `/blog/[slug]` for `/blog/my-post`, so events of the page
  * carry the template instead of the raw path (docs/website-analytics.md §6.1). Call it for every SPA navigation; the
  * TanStack Start integration (`useAnalyticsRoute` in `@moreflow/analytics/tanstack-start`) does that for you.
+ *
+ * Pass `path` (the navigation's target path) when you report the route before the URL changes, such as in a router's
+ * before-navigate hook: the route is then bound to that path and the navigation's pageview carries it.
  */
-export function setRoute(route: string): void {
-  call('setRoute', [route]);
+export function setRoute(route: string, path?: string): void {
+  call('setRoute', path === undefined ? [route] : [route, path]);
 }
 
 /** Passes the visitor's consent decision (from your consent banner) to the tracker. */
