@@ -8,6 +8,7 @@
 import { getRequestHeader } from '@tanstack/react-start/server';
 import { type ContentAssignments, contentHeaderName, parseContent } from './content';
 import { type FeatureFlagAssignments, flagsHeaderName, parseFlags } from './flags';
+import { parseSlotExperiments, type SlotExperiments, slotExperimentsHeaderName } from './slot-experiments';
 import { parseVariants, type VariantAssignments, variantsHeaderName } from './variants';
 
 /** The current request's platform variant assignments, or null off the platform. */
@@ -19,6 +20,11 @@ export function requestVariants(): VariantAssignments | null {
 /** The current request's content for the assigned variants (`x-mf-content`); `{}` without it. */
 export function requestContent(): ContentAssignments {
   return parseContent(getRequestHeader(contentHeaderName));
+}
+
+/** The current request's slot owners (`x-mf-slot-experiments`); `{}` without it. Pass it to `AnalyticsProvider` as `slotExperiments`. */
+export function requestSlotExperiments(): SlotExperiments {
+  return parseSlotExperiments(getRequestHeader(slotExperimentsHeaderName));
 }
 
 /**

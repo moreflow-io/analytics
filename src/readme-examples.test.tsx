@@ -30,7 +30,6 @@ import {
   contentHeaderName, 
   controlVariant,
   defaultAntiFlickerTimeoutMs,
-  defaultTrackerSrc,
   exposureEventName,
   type FeatureFlagAssignments,
   type FeatureFlagPayload,
@@ -62,10 +61,13 @@ import {
   resetExposures,
   resolveVariant,
   routeMetaName,
+  type SlotExperiments,
   serializeContent,
   serializeFlags,
+  serializeSlotExperiments,
   serializeVariants,
   setRoute,
+  slotExperimentsHeaderName,
   track,
   trackerConfigEvent,
   trackerReadyEvent,
@@ -93,6 +95,7 @@ import {
   Variant,
   type VariantProps
 } from './react';
+import { defaultTrackerSrc, defaultTrackerSrcFor } from './tracker-loader';
 
 // Each function body is the README example, verbatim (trimmed lines must match the README).
 // Setup that is not in the README can sit above the body in the same function.
@@ -308,6 +311,18 @@ const content = parseContent(header); // { 'hero.headline': 'Free first call' }
 
 function serializeContentExample() {
 const header = serializeContent({ 'hero.headline': 'Free first call' });
+}
+
+function slotExperimentsHeaderNameExample() {
+console.log(slotExperimentsHeaderName); // 'x-mf-slot-experiments'
+}
+
+function serializeSlotExperimentsExample() {
+const header = serializeSlotExperiments({ 'hero.headline': 'copy' });
+}
+
+function slotExperimentsExample() {
+const owners: SlotExperiments = { 'hero.headline': 'copy' };
 }
 
 function getContentExample() {
@@ -616,7 +631,8 @@ describe('README behaviour without the tracker', () => {
     init({ siteKey: 'mfs_abc' });
     const scripts = document.querySelectorAll('script[data-mf-analytics]');
     expect(scripts.length).toBe(1);
-    expect(scripts[0]?.getAttribute('src')).toBe(defaultTrackerSrc);
+    // The default follows the page host (tracker-loader.ts): production, or the Development ingest on a local page.
+    expect(scripts[0]?.getAttribute('src')).toBe(defaultTrackerSrcFor(window.location.hostname));
   });
 
   it('the platform readers are null without their meta tags', () => {

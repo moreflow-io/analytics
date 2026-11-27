@@ -5,7 +5,6 @@ import {
   beforeSend,
   consent,
   consentStatus,
-  defaultTrackerSrc,
   getAssignments,
   getVariant,
   identify,
@@ -16,9 +15,11 @@ import {
   resetExposures,
   serializeVariants,
   track,
+  trackerConfigEvent,
   trackerReadyEvent,
   unregister
 } from './index';
+import { defaultTrackerSrcFor } from './tracker-loader';
 
 function reset() {
   resetExposures();
@@ -87,7 +88,8 @@ describe('init', () => {
     init({ siteKey: 'mfs_abc' });
     const scripts = document.querySelectorAll('script');
     expect(scripts).toHaveLength(1);
-    expect(scripts[0]?.src).toBe(defaultTrackerSrc);
+    // The default follows the page host (tracker-loader.ts): production, or the Development ingest on a local page.
+    expect(scripts[0]?.src).toBe(defaultTrackerSrcFor(window.location.hostname));
     expect(scripts[0]?.getAttribute('data-site')).toBe('mfs_abc');
     expect(scripts[0]?.async).toBe(true);
     expect(window.moreflowAnalytics?.q).toEqual([]);
@@ -111,14 +113,17 @@ describe('init', () => {
     expect(window.moreflowAnalytics).toEqual({ q: [] });
   });
 
-  it('hides experiments until the tracker loads, then signals readiness', () => {
+  it('signals readiness when the script loads, and keeps experiments hidden until the config arrives', () => {
     const ready = vi.fn();
     window.addEventListener(trackerReadyEvent, ready);
     init({ siteKey: 'mfs_abc', antiFlicker: { timeoutMs: 1000 } });
     expect(document.getElementById('mf-anti-flicker')).not.toBeNull();
     document.querySelector('script')?.dispatchEvent(new Event('load'));
-    expect(document.getElementById('mf-anti-flicker')).toBeNull();
     expect(ready).toHaveBeenCalledOnce();
+    // The config is fetched after the script runs, so the variants are not known yet.
+    expect(document.getElementById('mf-anti-flicker')).not.toBeNull();
+    window.dispatchEvent(new Event(trackerConfigEvent));
+    expect(document.getElementById('mf-anti-flicker')).toBeNull();
     window.removeEventListener(trackerReadyEvent, ready);
   });
 
@@ -154,7 +159,7 @@ describe('init', () => {
       document.querySelector('script')?.dispatchEvent(new Event('error'));
       expect(document.getElementById('mf-anti-flicker')).toBeNull();
       expect(warn).toHaveBeenCalledOnce();
-      expect(String(warn.mock.calls[0]?.[0])).toContain(defaultTrackerSrc);
+      expect(String(warn.mock.calls[0]?.[0])).toContain(defaultTrackerSrcFor(window.location.hostname));
       expect(ready).toHaveBeenCalledOnce();
     } finally {
       window.removeEventListener(trackerReadyEvent, ready);

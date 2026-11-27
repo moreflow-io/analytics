@@ -1,5 +1,6 @@
 import { type ContentAssignments } from './content';
 import { type AnalyticsProviderProps } from './react';
+import { type SlotExperiments } from './slot-experiments';
 import { type VariantAssignments } from './variants';
 /**
  * Platform assignments from request headers, or null without the header (not on the
@@ -21,6 +22,13 @@ export declare function AnalyticsProvider(props: AnalyticsProviderProps): import
 export declare function contentFromHeaders(headers: Headers | {
     get(name: string): string | null;
 } | null | undefined): ContentAssignments;
+/**
+ * The experiment that owns each content slot (`x-mf-slot-experiments`), `{}` when the header is missing or invalid. Pass it to
+ * `AnalyticsProvider` as `slotExperiments`, next to `content`, so the slots' experiments are measured where they render.
+ */
+export declare function slotExperimentsFromHeaders(headers: Headers | {
+    get(name: string): string | null;
+} | null | undefined): SlotExperiments;
 /**
  * The `<meta name="mf-variants">` entry for a route `head()`, so the tracker and the browser
  * see the same assignments the server rendered. Empty without platform assignments.

@@ -2,7 +2,8 @@ import { type FeatureFlagAssignments } from './flags';
 import { type VariantAssignments } from './variants';
 export { type ContentAssignments, contentHeaderName, getContent, getContentImage, getContentLink, isSafeContentHref, isSafeContentImageSrc, MAX_CONTENT_HEADER_BYTES, MAX_CONTENT_SLOTS, MAX_CONTENT_TEXT_LENGTH, parseContent, serializeContent } from './content';
 export { type FeatureFlagAssignments, flagsHeaderName, flagsMetaName, parseFlags, readPlatformFlags, serializeFlags } from './flags';
-export { defaultAntiFlickerTimeoutMs, defaultTrackerSrc, trackerReadyEvent } from './tracker-loader';
+export { type SlotExperiments, serializeSlotExperiments, slotExperimentsHeaderName } from './slot-experiments';
+export { defaultAntiFlickerTimeoutMs, defaultTrackerSrc, trackerConfigEvent, trackerReadyEvent } from './tracker-loader';
 export { controlVariant, parseVariants, readPlatformVariants, serializeVariants, type VariantAssignments, variantsHeaderName, variantsMetaName } from './variants';
 /** Event properties accepted by the tracker. */
 export type AnalyticsProps = Readonly<Record<string, string | number | boolean>>;
@@ -67,9 +68,9 @@ export interface AnalyticsInitOptions {
      * and the calls queued here reach that tracker.
      */
     siteKey?: string | undefined;
-    /** Tracker URL. Default `https://a.moreflow.io/_mf/a.js`; use `/_mf/a.js` on the moreflow site platform. */
+    /** Tracker URL. Default `https://a.moreflow.io/_mf/a.js` (`https://a-dev.moreflow.io/_mf/a.js` on local pages and dev.moreflow.io); use `/_mf/a.js` on the moreflow site platform. */
     src?: string;
-    /** Off-platform only: hide `[data-mf-experiment]` until the tracker loads or the timeout passes. */
+    /** Off-platform only: hide `[data-mf-experiment]` until the tracker's experiment config arrives or the timeout passes. */
     antiFlicker?: AntiFlickerOptions | boolean;
     /** Registers the `beforeSend` hook, as {@link beforeSend} does; `null` removes it. Queued until the tracker loads. */
     beforeSend?: BeforeSendHook | null | undefined;
@@ -80,11 +81,6 @@ export interface AnalyticsInitOptions {
      */
     debug?: boolean | undefined;
 }
-/**
- * Dispatched on `window` by the tracker when its experiment config (`/_mf/c`) arrived, so
- * browser-side assignments become available; re-resolve variants on it like on the ready event.
- */
-export declare const trackerConfigEvent = "moreflow-analytics:config";
 /**
  * `name` of the meta tag that names the route template of a document (`/blog/[slug]`). The tracker reads it for the
  * initial path and the site router while it streams the page; `routeMeta(matches)` renders it for a TanStack route `head()`.

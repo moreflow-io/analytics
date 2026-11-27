@@ -15,6 +15,8 @@ export declare const contentHeaderName = "x-mf-content";
 export declare const MAX_CONTENT_HEADER_BYTES = 8192;
 export declare const MAX_CONTENT_SLOTS = 20;
 export declare const MAX_CONTENT_TEXT_LENGTH = 2000;
+/** Whether a string is a slot id (`hero.cta_label`): the rule every slot of the content and slot-owner headers meets. */
+export declare function isContentSlotId(value: string): boolean;
 export declare const MAX_CONTENT_LINK_LENGTH = 2048;
 /**
  * Whether a link target is safe to render as `href`: a path on the site (`/page`, never `//host`) or
@@ -23,6 +25,10 @@ export declare const MAX_CONTENT_LINK_LENGTH = 2048;
 export declare function isSafeContentHref(href: string): boolean;
 /** Whether an image source is safe to render as `src`: an https URL without credentials. */
 export declare function isSafeContentImageSrc(src: string): boolean;
+/** base64url of UTF-8 text, the encoding of the content and slot-owner headers. */
+export declare function toBase64Url(text: string): string;
+/** The UTF-8 text of a base64url value; throws on malformed input. */
+export declare function fromBase64Url(value: string): string;
 /**
  * Encodes slots for the header, in order, keeping only valid slots that still fit the size cap.
  * Empty when nothing is left: the worker then sends no header at all.

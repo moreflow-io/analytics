@@ -5,10 +5,30 @@
 import { debugEnabled, trackerLoadFailureMessage } from './debug';
 import type { AnalyticsInitOptions, AntiFlickerOptions, MoreflowAnalyticsGlobal } from './index';
 
+/** The production ingest's tracker: the default on every page except the Development hosts below. */
 export const defaultTrackerSrc = 'https://a.moreflow.io/_mf/a.js';
+/** The Development ingest's tracker (hosted Development's `a-dev`, the same ingest the Development site router proxies to). */
+export const developmentTrackerSrc = 'https://a-dev.moreflow.io/_mf/a.js';
 export const defaultAntiFlickerTimeoutMs = 300;
+const trackerPath = '/_mf/a.js';
+
+/**
+ * The tracker a page loads when `init` gets no `src`. Local pages and the hosted Development site (dev.moreflow.io) load the
+ * Development ingest: production site keys and origins do not exist there, so the production tracker would only refuse the
+ * events. Every other page loads the production ingest.
+ */
+export function defaultTrackerSrcFor(hostname: string): string {
+  const host = hostname.toLowerCase();
+  const development = host === 'dev.moreflow.io' || host === 'localhost' || host === '127.0.0.1' || host === '[::1]' || host.endsWith('.localhost');
+  return development ? developmentTrackerSrc : defaultTrackerSrc;
+}
 /** Dispatched on `window` once the tracker script has loaded (or failed to). */
 export const trackerReadyEvent = 'moreflow-analytics:ready';
+/**
+ * Dispatched on `window` by the tracker when its experiment config (`/_mf/c`) arrived, so
+ * browser-side assignments become available; re-resolve variants on it like on the ready event.
+ */
+export const trackerConfigEvent = 'moreflow-analytics:config';
 
 /**
  * The integration a tracker script reports (`data-src`): `npm` for `init`, `npm/react` for the React provider and
@@ -40,10 +60,27 @@ export function call(method: QueuedMethod, args: unknown[]): void {
   target.q.push([method, ...args]);
 }
 
-function trackerScriptPresent(): boolean {
-  return Boolean(document.querySelector(`script[${scriptMarker}], script[src$="/_mf/a.js"]`));
+/** The path of a script URL, without its query and hash; null when the URL does not parse. */
+function scriptPathOf(src: string): string | null {
+  try {
+    return new URL(src, window.location.href).pathname;
+  } catch {
+    return null;
+  }
 }
 
+/** A tracker is on the page when a script carries the marker or loads the tracker path, whatever its query or hash. */
+function trackerScriptPresent(): boolean {
+  return Array.from(document.querySelectorAll<HTMLScriptElement>(`script[${scriptMarker}], script[src]`)).some(
+    (script) => script.hasAttribute(scriptMarker) || scriptPathOf(script.getAttribute('src') ?? '')?.endsWith(trackerPath) === true
+  );
+}
+
+/**
+ * Hides `[data-mf-experiment]` until the variants are known: the tracker's config arrives (`trackerConfigEvent`), or the
+ * timeout passes. The script's load is not enough, since the config is fetched after the script runs, so revealing on
+ * load showed the control before the variant arrived.
+ */
 function startAntiFlicker(options: AntiFlickerOptions | boolean): () => void {
   if (document.getElementById(antiFlickerStyleId)) return () => undefined;
   const style = document.createElement('style');
@@ -53,9 +90,11 @@ function startAntiFlicker(options: AntiFlickerOptions | boolean): () => void {
   const timeoutMs = typeof options === 'object' && options.timeoutMs !== undefined ? options.timeoutMs : defaultAntiFlickerTimeoutMs;
   const reveal = () => {
     clearTimeout(timer);
+    window.removeEventListener(trackerConfigEvent, reveal);
     style.remove();
   };
   const timer = setTimeout(reveal, Math.max(0, timeoutMs));
+  window.addEventListener(trackerConfigEvent, reveal);
   return reveal;
 }
 
@@ -73,19 +112,17 @@ export function loadTracker(options: AnalyticsInitOptions, integrationSource: In
   const reveal = options.antiFlicker ? startAntiFlicker(options.antiFlicker) : () => undefined;
   const script = document.createElement('script');
   script.async = true;
-  script.src = options.src || defaultTrackerSrc;
+  script.src = options.src || defaultTrackerSrcFor(window.location.hostname);
   script.setAttribute('data-site', siteKey);
   script.setAttribute('data-src', integrationSource);
   script.setAttribute(scriptMarker, '');
   if (options.debug === true) script.setAttribute('data-debug', 'true');
-  const ready = () => {
-    reveal();
-    window.dispatchEvent(new Event(trackerReadyEvent));
-  };
+  const ready = () => window.dispatchEvent(new Event(trackerReadyEvent));
   script.addEventListener('load', ready);
   script.addEventListener('error', () => {
-    // A failed load releases the anti-flicker like a load does; debug mode says why analytics is missing (once: one script element).
+    // A failed load releases the anti-flicker at once: no config follows it. Debug mode says why analytics is missing (once: one script element).
     if (debugEnabled(options.debug, window.location.hostname)) console.warn(trackerLoadFailureMessage(script.src));
+    reveal();
     ready();
   });
   (document.head || document.documentElement).appendChild(script);

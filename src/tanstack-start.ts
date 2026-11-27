@@ -10,6 +10,7 @@ import { type ContentAssignments, contentHeaderName, parseContent } from './cont
 import { routeMetaName, setRoute } from './index';
 import { ProviderSourceContext } from './provider-source';
 import { type AnalyticsProviderProps, AnalyticsProvider as ReactAnalyticsProvider } from './react';
+import { parseSlotExperiments, type SlotExperiments, slotExperimentsHeaderName } from './slot-experiments';
 import { parseVariants, serializeVariants, type VariantAssignments, variantsHeaderName, variantsMetaName } from './variants';
 
 /**
@@ -36,6 +37,14 @@ export function AnalyticsProvider(props: AnalyticsProviderProps) {
  */
 export function contentFromHeaders(headers: Headers | { get(name: string): string | null } | null | undefined): ContentAssignments {
   return parseContent(headers?.get(contentHeaderName) ?? null);
+}
+
+/**
+ * The experiment that owns each content slot (`x-mf-slot-experiments`), `{}` when the header is missing or invalid. Pass it to
+ * `AnalyticsProvider` as `slotExperiments`, next to `content`, so the slots' experiments are measured where they render.
+ */
+export function slotExperimentsFromHeaders(headers: Headers | { get(name: string): string | null } | null | undefined): SlotExperiments {
+  return parseSlotExperiments(headers?.get(slotExperimentsHeaderName) ?? null);
 }
 
 /**

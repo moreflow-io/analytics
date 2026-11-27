@@ -4,7 +4,8 @@ import { createElement } from 'react';
 import { renderToString } from 'react-dom/server';
 import { afterEach, describe, expect, it } from 'vitest';
 import { type ContentAssignments, parseContent, serializeContent } from './content';
-import { AnalyticsProvider, ContentImage, ContentLink, ContentSlot } from './react';
+import { resetExposures } from './index';
+import { AnalyticsProvider, ContentImage, ContentLink, ContentSlot, useVariant } from './react';
 
 afterEach(cleanup);
 
@@ -69,5 +70,120 @@ describe('ContentLink and ContentImage', () => {
     expect(html).not.toContain('data:');
     expect(html).toContain('href="/kontakt"');
     expect(html).toContain('src="/default.jpg"');
+  });
+});
+
+describe('content slot exposures (x-mf-slot-experiments)', () => {
+  function recording() {
+    cleanup();
+    resetExposures();
+    delete window.moreflowAnalytics;
+  }
+  const queued = () => window.moreflowAnalytics?.q ?? [];
+
+  it('records the owning experiment once per page view, however many of its slots render', () => {
+    recording();
+    render(
+      createElement(
+        AnalyticsProvider,
+        {
+          src: '/_mf/a.js',
+          variants: { copy: 'b' },
+          content: { 'hero.headline': 'B', 'hero.cta_label': 'Los' },
+          slotExperiments: { 'hero.headline': 'copy', 'hero.cta_label': 'copy' }
+        },
+        createElement(
+          'main',
+          null,
+          createElement(ContentSlot, { id: 'hero.headline', children: 'A' }),
+          createElement(ContentSlot, { id: 'hero.cta_label', children: 'Go' })
+        )
+      )
+    );
+    expect(queued()).toEqual([['track', 'exposure', { experiment: 'copy', variant: 'b' }]]);
+  });
+
+  it('records the control variant for a control visitor, whose slot shows the site’s own copy', () => {
+    recording();
+    const { container } = render(
+      createElement(
+        AnalyticsProvider,
+        { src: '/_mf/a.js', variants: { copy: 'control' }, slotExperiments: { 'hero.headline': 'copy' } },
+        createElement(ContentSlot, { id: 'hero.headline', children: 'Eigener Text' })
+      )
+    );
+    expect(container.textContent).toBe('Eigener Text');
+    expect(queued()).toEqual([['track', 'exposure', { experiment: 'copy', variant: 'control' }]]);
+  });
+
+  it('records nothing for a slot without an owner, such as flag content', () => {
+    recording();
+    render(
+      createElement(
+        AnalyticsProvider,
+        { src: '/_mf/a.js', variants: { copy: 'b' }, content: { 'hero.subline': 'Flag' }, slotExperiments: { 'hero.headline': 'copy' } },
+        createElement(ContentSlot, { id: 'hero.subline', children: 'Eigener Text' })
+      )
+    );
+    expect(queued()).toEqual([]);
+  });
+
+  it('records nothing for an owner the visitor is not assigned to', () => {
+    recording();
+    render(
+      createElement(
+        AnalyticsProvider,
+        { src: '/_mf/a.js', variants: {}, slotExperiments: { 'hero.headline': 'copy' } },
+        createElement(ContentSlot, { id: 'hero.headline', children: 'Eigener Text' })
+      )
+    );
+    expect(queued()).toEqual([]);
+  });
+
+  it('shares one exposure with useVariant of the same experiment', () => {
+    recording();
+    function Hero() {
+      const variant = useVariant('copy');
+      return createElement('p', null, variant, ' ', createElement(ContentSlot, { id: 'hero.headline', children: 'A' }));
+    }
+    render(
+      createElement(AnalyticsProvider, { src: '/_mf/a.js', variants: { copy: 'b' }, content: { 'hero.headline': 'B' }, slotExperiments: { 'hero.headline': 'copy' } }, createElement(Hero))
+    );
+    expect(queued()).toEqual([['track', 'exposure', { experiment: 'copy', variant: 'b' }]]);
+  });
+
+  it('records a link and an image slot, and the alt text slot of the image', () => {
+    recording();
+    render(
+      createElement(
+        AnalyticsProvider,
+        {
+          src: '/_mf/a.js',
+          variants: { featured: 'b' },
+          content: { 'featured.cta_url': '/angebot', 'featured.image_alt': 'Studio innen' },
+          slotExperiments: { 'featured.cta_url': 'featured', 'featured.image': 'featured', 'featured.image_alt': 'featured' }
+        },
+        createElement(
+          'section',
+          null,
+          createElement(ContentLink, { id: 'featured.cta_url', href: '/kontakt' }, 'Mehr'),
+          createElement(ContentImage, { id: 'featured.image', altId: 'featured.image_alt', src: '/studio.jpg', alt: 'Studio' })
+        )
+      )
+    );
+    expect(queued()).toEqual([['track', 'exposure', { experiment: 'featured', variant: 'b' }]]);
+  });
+
+  it('records nothing while the page is server-rendered', () => {
+    recording();
+    const html = renderToString(
+      createElement(
+        AnalyticsProvider,
+        { src: '/_mf/a.js', variants: { copy: 'b' }, content: { 'hero.headline': 'B' }, slotExperiments: { 'hero.headline': 'copy' } },
+        createElement(ContentSlot, { id: 'hero.headline', children: 'A' })
+      )
+    );
+    expect(html).toContain('B');
+    expect(window.moreflowAnalytics).toBeUndefined();
   });
 });

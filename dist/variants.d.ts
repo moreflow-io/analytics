@@ -13,6 +13,8 @@ export declare const controlVariant = "control";
 export declare const variantsHeaderName = "x-mf-variants";
 /** `name` of the meta tag that carries the platform's assignments to the browser. */
 export declare const variantsMetaName = "mf-variants";
+/** Whether a string is an assignment token: an experiment key or a variant name (`exp1`, `b`). */
+export declare function isAssignmentToken(value: string): boolean;
 /**
  * Parses `exp1=b;exp2=control`. Malformed or empty entries are skipped, so a
  * missing or broken header simply yields no assignments.

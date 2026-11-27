@@ -19,6 +19,11 @@ export const variantsMetaName = 'mf-variants';
 
 const tokenPattern = /^[A-Za-z0-9_.:-]{1,64}$/u;
 
+/** Whether a string is an assignment token: an experiment key or a variant name (`exp1`, `b`). */
+export function isAssignmentToken(value: string): boolean {
+  return tokenPattern.test(value);
+}
+
 /**
  * Parses `exp1=b;exp2=control`. Malformed or empty entries are skipped, so a
  * missing or broken header simply yields no assignments.

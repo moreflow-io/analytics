@@ -4,6 +4,10 @@ All notable changes to `@moreflow/analytics` are documented in this file.
 
 ## Unreleased
 
+## 0.1.2
+
+- Content-slot and product-binding experiments record exposure: the platform's `x-mf-slot-experiments` header names the experiment that owns each content slot. `requestSlotExperiments()` in `@moreflow/analytics/tanstack-start/server` and `slotExperimentsFromHeaders(headers)` in `@moreflow/analytics/tanstack-start` read it; pass the result to `AnalyticsProvider` as `slotExperiments`, and a rendered slot records its experiment's `exposure` without a `useVariant` call. `slotExperimentsHeaderName` and `serializeSlotExperiments` (with the `SlotExperiments` type) handle the format.
+
 ## 0.1.1
 
 - `setRoute(route, path?)`: the optional `path` binds the template to a navigation's target path, for a route reported before the URL changes. `useAnalyticsRoute()` now passes the target path from `onBeforeNavigate`, so a navigation's pageview carries the matched template even while route loaders still run (before, the template was bound to the old path and cleared by the push).

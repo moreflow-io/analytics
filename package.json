@@ -1,6 +1,6 @@
 {
   "name": "@moreflow/analytics",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Thin browser SDK for moreflow website analytics and A/B testing: loads the moreflow tracker, queues events and reads experiment variants, with optional React bindings.",
   "license": "MIT",
   "repository": {

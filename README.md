@@ -28,7 +28,7 @@ nothing without `window`, and `getVariant` returns `'control'`.
 
 | Function | Purpose |
 | --- | --- |
-| `init({ siteKey, src?, antiFlicker?, debug? })` | Injects the tracker once and sets up the queue. No-op on the server. Without `siteKey` it only sets up the queue and loads nothing (on the site platform the injected tracker drains it). `src` defaults to `https://a.moreflow.io/_mf/a.js`; on the moreflow site platform use `'/_mf/a.js'` (same origin). `debug` logs events to the console, see [Debugging](#debugging). |
+| `init({ siteKey, src?, antiFlicker?, debug? })` | Injects the tracker once and sets up the queue. No-op on the server. Without `siteKey` it only sets up the queue and loads nothing (on the site platform the injected tracker drains it). `src` defaults to `https://a.moreflow.io/_mf/a.js` (on local pages and `dev.moreflow.io`, `https://a-dev.moreflow.io/_mf/a.js`); on the moreflow site platform use `'/_mf/a.js'` (same origin). `debug` logs events to the console, see [Debugging](#debugging). |
 | `track(name, props?)` | Records an event. `props` values are strings, numbers or booleans. |
 | `register(props)` | Super properties: merged into every later event. Remembered across visits only after consent. |
 | `unregister(key)` | Removes a super property. |
@@ -235,8 +235,9 @@ is a peer dependency, needed only for `@moreflow/analytics/react`.
 
 Off-platform, variants are known only after the tracker loads, so the control
 can show for a moment. `init({ siteKey, antiFlicker: { timeoutMs: 300 } })`
-hides elements marked `data-mf-experiment` until the tracker has loaded or the
-timeout passes (default 300 ms), whichever comes first. This is best-effort: a
+hides elements marked `data-mf-experiment` until the tracker's experiment config
+has arrived (`trackerConfigEvent`), or the timeout passes (default 300 ms),
+whichever comes first. A failed tracker load reveals at once. This is best-effort: a
 slow network still shows control. On the moreflow site platform you don't
 need it, because variants are rendered on the server.
 
@@ -298,8 +299,10 @@ loads the tracker as `npm/tanstack-start`, so the installs of a TanStack Start s
 are told apart from React ones in the site's analytics page.
 
 `@moreflow/analytics/tanstack-start` is client-safe and imports no server
-TanStack module. `variantsFromHeaders(headers)` and `contentFromHeaders(headers)`
-take any `Headers`-like object; `variantsMeta(variants)` renders the
+TanStack module. `variantsFromHeaders(headers)`, `contentFromHeaders(headers)` and
+`slotExperimentsFromHeaders(headers)` take any `Headers`-like object (the last one
+reads `x-mf-slot-experiments`, the owner of each content slot, and goes to the
+provider's `slotExperiments` prop, so a rendered slot records its experiment's exposure); `variantsMeta(variants)` renders the
 `mf-variants` meta entry for a route `head()`.
 
 `useAnalyticsRoute()` reports the matched route template to the tracker (see
@@ -319,8 +322,8 @@ without `setRoute`. Put it in the root route's `head()`, which TanStack calls wi
 the matches of the whole page.
 
 `@moreflow/analytics/tanstack-start/server` holds the server-only readers.
-`requestVariants()`, `requestContent()` and `requestFlags()` read the platform's
-`x-mf-variants`, `x-mf-content` and `x-mf-flags` headers of the current request
+`requestVariants()`, `requestContent()`, `requestSlotExperiments()` and `requestFlags()` read the platform's
+`x-mf-variants`, `x-mf-content`, `x-mf-slot-experiments` and `x-mf-flags` headers of the current request
 (`requestVariants()` and `requestFlags()` return null off the platform). Call them only inside a
 server function or server route. They import `@tanstack/react-start/server`, an
 optional peer dependency that only this subpath needs; a client bundle must
@@ -335,18 +338,24 @@ import { routeMeta, useAnalyticsRoute, variantsMeta } from '@moreflow/analytics/
 
 const getExperiments = createServerFn().handler(async () => {
   // Dynamic import keeps the request APIs out of the browser bundle.
-  const { requestContent, requestFlags, requestVariants } = await import('@moreflow/analytics/tanstack-start/server');
-  return { variants: requestVariants(), content: requestContent(), flags: requestFlags() };
+  const { requestContent, requestFlags, requestSlotExperiments, requestVariants } = await import('@moreflow/analytics/tanstack-start/server');
+  return { variants: requestVariants(), content: requestContent(), slotExperiments: requestSlotExperiments(), flags: requestFlags() };
 });
 
 export const Route = createRootRoute({
   loader: () => getExperiments(),
   head: ({ loaderData, matches }) => ({ meta: [...variantsMeta(loaderData?.variants), ...routeMeta(matches)] }),
   component: () => {
-    const { variants, content, flags } = Route.useLoaderData();
+    const { variants, content, slotExperiments, flags } = Route.useLoaderData();
     useAnalyticsRoute();
     return (
-      <AnalyticsProvider src="/_mf/a.js" variants={variants ?? undefined} content={content} flags={flags ?? undefined}>
+      <AnalyticsProvider
+        src="/_mf/a.js"
+        variants={variants ?? undefined}
+        content={content}
+        slotExperiments={slotExperiments}
+        flags={flags ?? undefined}
+      >
         <Outlet />
       </AnalyticsProvider>
     );
@@ -408,8 +417,9 @@ init(options);
 
 #### `AntiFlickerOptions`
 
-The `antiFlicker` option: hides `[data-mf-experiment]` elements until the tracker
-has loaded or `timeoutMs` (default 300) has passed. Off the platform only.
+The `antiFlicker` option: hides `[data-mf-experiment]` elements until the tracker's
+experiment config has arrived (`trackerConfigEvent`), the tracker failed to load, or
+`timeoutMs` (default 300) has passed. Off the platform only.
 
 ```ts
 import { type AntiFlickerOptions, init } from '@moreflow/analytics';
@@ -1011,6 +1021,42 @@ console.log(contentHeaderName); // 'x-mf-content'
 ```
 
 - **Without consent / without the tracker:** a constant only.
+
+#### `slotExperimentsHeaderName`
+
+The request header with the experiment that owns each content slot (`x-mf-slot-experiments`). Its parsed value goes to `AnalyticsProvider` as `slotExperiments` (through `slotExperimentsFromHeaders` in `@moreflow/analytics/tanstack-start`): a rendered slot then records its experiment's `exposure`, so a content or product-binding experiment is measured without a `useVariant` call.
+
+```ts
+import { slotExperimentsHeaderName } from '@moreflow/analytics';
+
+console.log(slotExperimentsHeaderName); // 'x-mf-slot-experiments'
+```
+
+- **Without consent / without the tracker:** a constant only.
+
+#### `serializeSlotExperiments(owners)`
+
+Encodes the slot owners (`slot id → experiment key`) for the `x-mf-slot-experiments` header, keeping only valid entries that fit the header's size cap. Returns `''` when nothing is left. The routing worker sends it.
+
+```ts
+import { serializeSlotExperiments } from '@moreflow/analytics';
+
+const header = serializeSlotExperiments({ 'hero.headline': 'copy' });
+```
+
+- **Without consent / without the tracker:** pure.
+
+#### `SlotExperiments`
+
+The owners of the content slots, `slot id → experiment key`, as `serializeSlotExperiments` takes them and the provider's `slotExperiments` prop reads them.
+
+```ts
+import { type SlotExperiments } from '@moreflow/analytics';
+
+const owners: SlotExperiments = { 'hero.headline': 'copy' };
+```
+
+- **Without consent / without the tracker:** a type only.
 
 #### `ContentAssignments`
 

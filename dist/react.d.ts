@@ -1,5 +1,6 @@
 import { type AnchorHTMLAttributes, type ImgHTMLAttributes, type ReactNode } from 'react';
 import { type AnalyticsInitOptions, type ContentAssignments, consent, type FeatureFlagAssignments, type FeatureFlagPayload, identify, register, reset, track, unregister, type VariantAssignments } from './index';
+import type { SlotExperiments } from './slot-experiments';
 export type AnalyticsProviderProps = AnalyticsInitOptions & {
     /**
      * Platform-assigned variants, the same on the server and in the browser
@@ -9,6 +10,12 @@ export type AnalyticsProviderProps = AnalyticsInitOptions & {
     variants?: VariantAssignments | undefined;
     /** Platform-assigned content (the parsed `x-mf-content` header); read by {@link useContentSlot}. */
     content?: ContentAssignments | undefined;
+    /**
+     * The experiment that owns each content slot (the parsed `x-mf-slot-experiments` header, slot-experiments.ts). A rendered
+     * slot records its experiment's `exposure` once per page view, so a content or product-binding experiment is measured
+     * without `useVariant`. Pass it next to `content`.
+     */
+    slotExperiments?: SlotExperiments | undefined;
     /** Platform feature flag decisions (the parsed `x-mf-flags` request header); read by {@link useFeatureFlag}. */
     flags?: FeatureFlagAssignments | undefined;
     children?: ReactNode;
@@ -17,7 +24,7 @@ export type AnalyticsProviderProps = AnalyticsInitOptions & {
  * Loads the tracker once on mount and provides platform variants, content and flags to the hooks. The tracker reports
  * `npm/react`; the TanStack Start entry's provider reports `npm/tanstack-start` through {@link ProviderSourceContext}.
  */
-export declare function AnalyticsProvider({ siteKey, src, antiFlicker, beforeSend, debug, variants, content, flags, children }: AnalyticsProviderProps): import("react").FunctionComponentElement<import("react").ProviderProps<Readonly<Record<string, string>> | undefined>>;
+export declare function AnalyticsProvider({ siteKey, src, antiFlicker, beforeSend, debug, variants, content, slotExperiments, flags, children }: AnalyticsProviderProps): import("react").FunctionComponentElement<import("react").ProviderProps<Readonly<Record<string, string>> | undefined>>;
 /**
  * The text of a content slot: the assigned variant's copy, else `fallback` (the site's own copy).
  * Read synchronously from the provider, so server rendering and hydration render the same text.

@@ -20,6 +20,11 @@ export const MAX_CONTENT_TEXT_LENGTH = 2000;
 
 const slotPattern = /^[a-z][a-z0-9_.-]{0,63}$/u;
 const base64UrlPattern = /^[A-Za-z0-9_-]+$/u;
+
+/** Whether a string is a slot id (`hero.cta_label`): the rule every slot of the content and slot-owner headers meets. */
+export function isContentSlotId(value: string): boolean {
+  return slotPattern.test(value);
+}
 export const MAX_CONTENT_LINK_LENGTH = 2048;
 // Whitespace, control characters and backslashes let browsers rewrite a URL after it was checked.
 const unsafeUrlCharacters = /[\s\\\p{Cc}]/u;
@@ -44,13 +49,15 @@ export function isSafeContentImageSrc(src: string): boolean {
   return !src.startsWith('/') && isSafeContentHref(src);
 }
 
-function toBase64Url(text: string): string {
+/** base64url of UTF-8 text, the encoding of the content and slot-owner headers. */
+export function toBase64Url(text: string): string {
   let binary = '';
   for (const byte of new TextEncoder().encode(text)) binary += String.fromCharCode(byte);
   return btoa(binary).replace(/\+/gu, '-').replace(/\//gu, '_').replace(/=+$/u, '');
 }
 
-function fromBase64Url(value: string): string {
+/** The UTF-8 text of a base64url value; throws on malformed input. */
+export function fromBase64Url(value: string): string {
   const base64 = value.replace(/-/gu, '+').replace(/_/gu, '/');
   const binary = atob(base64 + '='.repeat((4 - (base64.length % 4)) % 4));
   return new TextDecoder('utf-8', { fatal: true }).decode(Uint8Array.from(binary, (char) => char.charCodeAt(0)));
